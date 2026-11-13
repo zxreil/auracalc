@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>AuraCalc</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); background-size: 400% 400%; animation: gradientBG 15s ease infinite; color: #fff; transition: background 0.3s; }
+  @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+  .app-container { background: rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 24px; width: 100%; max-width: 380px; height: 98vh; max-height: 800px; box-shadow: 0 25px 45px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.1); overflow: hidden; display: flex; flex-direction: column; }
+  
+  .tabs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 12px; }
+  .tab-btn { background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.6); padding: 10px 0; border-radius: 12px; cursor: pointer; font-size: 0.75em; font-weight: bold; transition: all 0.2s; outline: none; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
+  .tab-btn svg { width: 20px; height: 20px; fill: currentColor; opacity: 0.7; transition: all 0.2s; }
+  .tab-btn:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+  .tab-btn:hover svg { opacity: 1; }
+  .tab-btn.active { background: rgba(90, 150, 220, 0.2); border-color: rgba(90, 150, 220, 0.4); color: #fff; box-shadow: inset 0 2px 5px rgba(255,255,255,0.1); }
+  .tab-btn.active svg { fill: #cce3ff; opacity: 1; }
+
+  @keyframes fadeInSlide { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  .tab-content { display: none; padding: 16px; background: rgba(0, 0, 0, 0.1); border-top: 1px solid rgba(255,255,255,0.1); flex: 1; overflow-y: auto; }
+  .tab-content.active { display: flex; flex-direction: column; animation: fadeInSlide 0.3s ease-out forwards; }
+
+  .calculator { width: 100%; }
+  .display-container { background: rgba(0, 0, 0, 0.3); border-radius: 12px; padding: 12px 15px; margin-bottom: 12px; border: 1px solid rgba(255, 255, 255, 0.05); box-shadow: inset 0 2px 10px rgba(0,0,0,0.2); display: flex; flex-direction: column; justify-content: space-between; height: 100px; overflow: hidden; }
+  .expression { color: #a0c4df; font-size: 1em; text-align: right; min-height: 20px; white-space: nowrap; overflow-x: auto; overflow-y: hidden; }
+  .expression::-webkit-scrollbar { display: none; }
+  .expression { -ms-overflow-style: none; scrollbar-width: none; }
+  .result { color: #ffffff; font-size: 2.8em; text-align: right; font-weight: 300; line-height: 1; text-shadow: 0 2px 10px rgba(255,255,255,0.2); }
+
+  .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  button.btn-calc { border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 10px; font-size: 1.2em; padding: 14px 0; color: #fff; cursor: pointer; background: rgba(255, 255, 255, 0.08); box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: all 0.15s ease; display: flex; justify-content: center; align-items: center; user-select: none; }
+  button.btn-calc:hover { background: rgba(255, 255, 255, 0.15); transform: translateY(-1px); }
+  button.btn-calc:active { transform: translateY(1px); box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }
+
+  .btn-dark { background: rgba(0, 0, 0, 0.25); font-size: 0.9em; }
+  .btn-dark:hover { background: rgba(0, 0, 0, 0.35); }
+  .btn-clear { background: rgba(255, 59, 48, 0.3); border-color: rgba(255, 59, 48, 0.5); font-weight: bold; }
+  .btn-clear:hover { background: rgba(255, 59, 48, 0.45); }
+  .btn-num { background: rgba(255, 255, 255, 0.12); font-size: 1.3em; }
+  .btn-num:hover { background: rgba(255, 255, 255, 0.2); }
+  .btn-op { background: rgba(90, 150, 220, 0.25); border-color: rgba(90, 150, 220, 0.4); color: #cce3ff; font-size: 1.4em; }
+  .btn-op:hover { background: rgba(90, 150, 220, 0.4); }
+  .btn-equals { background: rgba(255, 149, 0, 0.3); border-color: rgba(255, 149, 0, 0.5); grid-column: span 3; font-size: 1.4em; color: #ffe0b2; }
+  .btn-equals:hover { background: rgba(255, 149, 0, 0.45); }
+  .btn-del { background: rgba(255, 59, 48, 0.25); border-color: rgba(255, 59, 48, 0.4); }
+  .btn-del:hover { background: rgba(255, 59, 48, 0.4); }
+  .btn-del svg { width: 18px; height: 18px; fill: #ffb3b3; }
+
+  .history-container { margin-top: 12px; background: rgba(0, 0, 0, 0.15); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05); padding: 10px; display: flex; flex-direction: column; }
+  .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 5px; }
+  .history-header span { font-size: 0.8em; color: #a0c4df; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
+  .btn-clear-history { background: transparent; border: none; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; transition: opacity 0.2s; opacity: 0.6; color: #ffb3b3; }
+  .btn-clear-history:hover { opacity: 1; }
+  .btn-clear-history svg { width: 16px; height: 16px; fill: currentColor; }
+  .history-list { max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 5px; }
+  .history-list::-webkit-scrollbar { width: 4px; }
+  .history-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+  .history-item { display: flex; flex-direction: column; text-align: right; padding-bottom: 6px; border-bottom: 1px solid rgba(255, 255, 255, 0.05); cursor: pointer; }
+  .history-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .history-expr { font-size: 0.8em; color: #8c9da8; word-break: break-all; }
+  .history-result { font-size: 1.2em; color: #fff; font-weight: 500; transition: color 0.2s; }
+  .history-item:hover .history-result { color: #a0c4df; }
+
+  .percent-form { display: flex; flex-direction: column; gap: 15px; }
+  .input-group { display: flex; flex-direction: column; gap: 5px; }
+  .input-group label { font-size: 0.9em; color: #a0c4df; margin-left: 5px; }
+  .input-group input { width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 10px; color: #fff; font-size: 1.5em; padding: 12px 15px; outline: none; transition: border 0.2s; }
+  .input-group input:focus { border-color: rgba(90, 150, 220, 0.8); background: rgba(0, 0, 0, 0.4); }
+  .percent-buttons { display: flex; gap: 10px; margin-top: 10px; }
+  .btn-percent { flex: 1; padding: 15px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); font-size: 1.1em; font-weight: bold; cursor: pointer; transition: all 0.2s; color: white; }
+  .btn-percent.add { background: rgba(52, 199, 89, 0.3); border-color: rgba(52, 199, 89, 0.5); }
+  .btn-percent.add:hover { background: rgba(52, 199, 89, 0.45); }
+  .btn-percent.sub { background: rgba(255, 59, 48, 0.3); border-color: rgba(255, 59, 48, 0.5); }
+  .btn-percent.sub:hover { background: rgba(255, 59, 48, 0.45); }
+  .result-box { background: rgba(0, 0, 0, 0.3); border-radius: 12px; padding: 15px; margin-top: 15px; border: 1px solid rgba(255, 255, 255, 0.05); display: none; text-align: center; }
+  .result-box .total { font-size: 2.5em; font-weight: 300; color: #fff; margin-bottom: 5px; }
+  .result-box .details { font-size: 0.9em; color: #a0c4df; display: flex; flex-direction: column; gap: 4px; margin-bottom: 15px; }
+  .result-box .details span { display: block; }
+  .btn-percent-reset { background: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 10px; color: #fff; width: 100%; padding: 12px; font-size: 1em; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+  .btn-percent-reset:hover { background: rgba(255, 255, 255, 0.2); }
+
+  .timer-display { font-size: 3.5em; text-align: center; font-weight: 300; font-variant-numeric: tabular-nums; margin: 20px 0; text-shadow: 0 2px 15px rgba(255,255,255,0.2); }
+  .ms-display { font-size: 0.4em; color: #a0c4df; }
+  .timer-controls { display: flex; justify-content: center; gap: 12px; margin-bottom: 20px; }
+  .btn-timer { flex: 1; padding: 14px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.1); font-size: 1em; font-weight: bold; cursor: pointer; transition: all 0.2s; background: rgba(255, 255, 255, 0.1); color: white; }
+  .btn-timer:hover { background: rgba(255, 255, 255, 0.2); }
+  .btn-timer:active { transform: scale(0.98); }
+  .btn-start { background: rgba(52, 199, 89, 0.3); border-color: rgba(52, 199, 89, 0.5); }
+  .btn-start:hover { background: rgba(52, 199, 89, 0.45); }
+  .btn-pause { background: rgba(255, 149, 0, 0.3); border-color: rgba(255, 149, 0, 0.5); }
+  .btn-pause:hover { background: rgba(255, 149, 0, 0.45); }
+  .btn-reset { background: rgba(255, 59, 48, 0.3); border-color: rgba(255, 59, 48, 0.5); }
+  .btn-reset:hover { background: rgba(255, 59, 48, 0.45); }
+  .time-inputs { display: flex; justify-content: center; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .time-inputs input { width: 80px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 1.5em; text-align: center; padding: 10px; outline: none; }
+  .time-inputs input:focus { border-color: rgba(90, 150, 220, 0.8); }
+  .time-inputs span { font-size: 1.5em; color: #a0c4df; }
+
+  .clicker-container { display: flex; flex-direction: column; align-items: center; width: 100%; gap: 20px; }
+  .clicker-score { font-size: 4em; font-weight: 300; text-shadow: 0 0 20px rgba(255,255,255,0.3); }
+  .clicker-record { font-size: 0.9em; color: #a0c4df; }
+  .btn-reset-action { background: rgba(255, 59, 48, 0.2); border: 1px solid rgba(255, 59, 48, 0.4); color: #ffb3b3; padding: 10px 20px; border-radius: 8px; font-size: 1em; font-weight: bold; cursor: pointer; transition: all 0.2s; width: 100%; margin-top: 10px; }
+  .btn-reset-action:hover { background: rgba(255, 59, 48, 0.4); color: #fff; }
+  .clicker-btn { width: 150px; height: 150px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 255, 255, 0.2) 0%, rgba(255, 255, 255, 0.05) 100%); border: 2px solid rgba(255, 255, 255, 0.3); font-size: 4em; cursor: pointer; box-shadow: 0 10px 20px rgba(0,0,0,0.2), inset 0 0 20px rgba(255,255,255,0.1); transition: all 0.1s; user-select: none; display: flex; justify-content: center; align-items: center; color: #fff; }
+  .clicker-btn:active { transform: scale(0.95); background: radial-gradient(circle, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.1) 100%); }
+
+  .random-container { display: flex; flex-direction: column; gap: 20px; width: 100%; align-items: center; }
+  .random-result { font-size: 4em; font-weight: 300; color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.3); margin: 10px 0; transition: all 0.2s; }
+  .random-inputs { display: flex; gap: 10px; align-items: center; width: 100%; justify-content: center; }
+  .random-inputs input { width: 80px; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; color: #fff; font-size: 1.2em; text-align: center; padding: 10px; outline: none; }
+  .random-inputs span { color: #a0c4df; font-size: 1.5em; }
+  .btn-random { background: rgba(90, 150, 220, 0.3); border: 1px solid rgba(90, 150, 220, 0.5); border-radius: 12px; color: #cce3ff; width: 100%; padding: 15px; font-size: 1.2em; font-weight: bold; cursor: pointer; transition: all 0.2s; }
+  .btn-random:hover { background: rgba(90, 150, 220, 0.5); }
+
+  .vault-container { display: flex; flex-direction: column; gap: 15px; width: 100%; align-items: center; }
+  .vault-header { font-size: 1.2em; font-weight: bold; color: #a0c4df; margin-bottom: 5px; width: 100%; text-align: left; }
+  .vault-upload-btn { background: rgba(52, 199, 89, 0.2); border: 1px dashed rgba(52, 199, 89, 0.5); color: #b3ffcc; width: 100%; padding: 20px; border-radius: 12px; cursor: pointer; text-align: center; font-size: 1em; font-weight: bold; transition: all 0.2s; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .vault-upload-btn:hover { background: rgba(52, 199, 89, 0.3); }
+  .vault-files-list { width: 100%; display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; padding-right: 5px; }
+  .vault-files-list::-webkit-scrollbar { width: 4px; }
+  .vault-files-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
+  .vault-file-item { display: flex; align-items: center; justify-content: space-between; background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 10px; }
+  .vault-file-info { display: flex; flex-direction: column; gap: 2px; overflow: hidden; }
+  .vault-file-name { font-size: 0.9em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; text-decoration: underline; }
+  .vault-file-size { font-size: 0.7em; color: #8c9da8; }
+  .btn-vault-delete { background: rgba(255, 59, 48, 0.2); border: 1px solid rgba(255, 59, 48, 0.4); color: #ffb3b3; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 0.8em; transition: all 0.2s; }
+  .btn-vault-delete:hover { background: rgba(255, 59, 48, 0.4); color: #fff; }
+
+  input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+</style>
+</head>
+<body>
+
+<div class="app-container">
+  
+  <div class="tabs-grid">
+    <button class="tab-btn active" onclick="switchTab('calc', this)">
+      <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-8 16H7v-2h4v2zm0-4H7v-2h4v2zm0-4H7V9h4v2zm6 8h-4v-2h4v2zm0-4h-4v-2h4v2zm0-4h-4V9h4v2z"/></svg>
+      Кальк
+    </button>
+    <button class="tab-btn" onclick="switchTab('percent', this)">
+      <svg viewBox="0 0 24 24"><path d="M18.5 2.5L2.5 18.5l3 3L21.5 5.5l-3-3zM7 6c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2zm10 10c1.1 0 2 .9 2 2s-.9 2-2 2-2-.9-2-2 .9-2 2-2z"/></svg>
+      Проценты
+    </button>
+    <button class="tab-btn" onclick="switchTab('stopwatch', this)">
+      <svg viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42A8.962 8.962 0 0012 4c-4.97 0-9 4.03-9 9s4.02 9 9 9a8.994 8.994 0 007.03-14.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+      Секунд.
+    </button>
+    <button class="tab-btn" onclick="switchTab('timer', this)">
+      <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+      Таймер
+    </button>
+    <button class="tab-btn" onclick="switchTab('clicker', this)">
+      <svg viewBox="0 0 24 24"><path d="M9 11.24V7.5a2.5 2.5 0 0 1 5 0v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6a1.5 1.5 0 0 0-3 0v10.74l-3.43-.72c-.08-.01-.15-.03-.24-.03-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.79c.75 0 1.33-.55 1.44-1.28l.75-5.27c.01-.07.02-.14.02-.2 0-.62-.38-1.16-.91-1.38z"/></svg>
+      Кликер
+    </button>
+    <button class="tab-btn" onclick="switchTab('random', this)">
+      <svg viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+      Рандом
+    </button>
+  </div>
+
+  <div id="tab-calc" class="tab-content active">
+    <div class="calculator">
+      <div class="display-container">
+        <div class="expression" id="expression"></div>
+        <div class="result" id="result">0</div>
+      </div>
+      <div class="buttons">
+        <button id="btn-toggle-clear" class="btn-calc btn-dark" onclick="handleTopLeft()">+/-</button>
+        <button class="btn-calc btn-dark" onclick="append('(')">(</button>
+        <button class="btn-calc btn-dark" onclick="append(')')">)</button>
+        <button class="btn-calc btn-dark" onclick="append('e')">EE</button>
+        <button class="btn-calc btn-num" onclick="append('7')">7</button>
+        <button class="btn-calc btn-num" onclick="append('8')">8</button>
+        <button class="btn-calc btn-num" onclick="append('9')">9</button>
+        <button class="btn-calc btn-op" onclick="append('/')">÷</button>
+        <button class="btn-calc btn-num" onclick="append('4')">4</button>
+        <button class="btn-calc btn-num" onclick="append('5')">5</button>
+        <button class="btn-calc btn-num" onclick="append('6')">6</button>
+        <button class="btn-calc btn-op" onclick="append('*')">×</button>
+        <button class="btn-calc btn-num" onclick="append('1')">1</button>
+        <button class="btn-calc btn-num" onclick="append('2')">2</button>
+        <button class="btn-calc btn-num" onclick="append('3')">3</button>
+        <button class="btn-calc btn-op" onclick="append('-')">−</button>
+        <button class="btn-calc btn-num" onclick="append('0')">0</button>
+        <button class="btn-calc btn-num" onclick="append('.')">.</button>
+        <button class="btn-calc btn-num" onclick="append('%')">%</button>
+        <button class="btn-calc btn-op" onclick="append('+')">+</button>
+        <button class="btn-calc btn-del" onclick="backspace()">
+          <svg viewBox="0 0 24 24"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12.59L17.59 17 14 13.41 10.41 17 9 15.59 12.59 12 9 8.41 10.41 7 14 10.59 17.59 7 19 8.41 15.41 12 19 15.59z"/></svg>
+        </button>
+        <button class="btn-calc btn-equals" onclick="calculate()">=</button>
+      </div>
+      <div class="history-container">
+        <div class="history-header">
+          <span>История</span>
+          <button id="btn-clear-hist" class="btn-clear-history" onclick="triggerClearHistory()">
+            <svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>
+        </div>
+        <div class="history-list" id="history-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-percent" class="tab-content">
+    <div class="percent-form">
+      <div class="input-group"><label>Исходная сумма</label><input type="number" id="p-sum" onfocus="this.select()"></div>
+      <div class="input-group"><label>Процент (%)</label><input type="number" id="p-percent" onfocus="this.select()"></div>
+      <div class="percent-buttons">
+        <button class="btn-percent add" onclick="calcPercent('add')">Прибавить %</button>
+        <button class="btn-percent sub" onclick="calcPercent('sub')">Вычесть %</button>
+      </div>
+      <div class="result-box" id="p-result-box">
+        <div class="total" id="p-total">0</div>
+        <div class="details"><span id="p-details"></span><span id="p-diff" style="color: #fff; margin-top: 5px;"></span></div>
+        <button class="btn-percent-reset" onclick="resetPercent()">Сбросить</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tab-stopwatch" class="tab-content">
+    <div class="timer-display"><span id="sw-min">00</span>:<span id="sw-sec">00</span><span class="ms-display" id="sw-ms">.00</span></div>
+    <div class="timer-controls">
+      <button class="btn-timer btn-start" id="sw-btn-start" onclick="toggleStopwatch()">Старт</button>
+      <button class="btn-timer btn-reset" onclick="resetStopwatch()">Сброс</button>
+    </div>
+  </div>
+
+  <div id="tab-timer" class="tab-content">
+    <div class="time-inputs" id="timer-inputs">
+      <input type="number" id="in-min" min="0" max="99" value="5"><span>:</span><input type="number" id="in-sec" min="0" max="59" value="00">
+    </div>
+    <div class="timer-display" id="timer-display" style="display: none;"><span id="t-min">05</span>:<span id="t-sec">00</span></div>
+    <div class="timer-controls">
+      <button class="btn-timer btn-start" id="tm-btn-start" onclick="toggleTimer()">Старт</button>
+      <button class="btn-timer btn-reset" onclick="resetTimer()">Сброс</button>
+    </div>
+  </div>
+
+  <div id="tab-clicker" class="tab-content">
+    <div class="clicker-container">
+      <div class="clicker-score" id="click-score">0</div>
+      <div class="clicker-record">Рекорд: <span id="click-record">0</span></div>
+      <button class="clicker-btn" onclick="doClick()">👆</button>
+      <button class="btn-reset-action" onclick="resetClicker()">Сбросить счет</button>
+    </div>
+  </div>
+
+  <div id="tab-random" class="tab-content">
+    <div class="random-container">
+      <div class="random-result" id="random-result">?</div>
+      <div class="random-inputs">
+        <input type="number" id="random-min" value="1"><span>—</span><input type="number" id="random-max" value="100">
+      </div>
+      <button class="btn-random" onclick="rollRandom()">Сгенерировать</button>
+      <button class="btn-reset-action" onclick="resetRandom()">Сбросить</button>
+    </div>
+  </div>
+
+  <div id="tab-vault" class="tab-content">
+    <div class="vault-container">
+      <div class="vault-header">🔒 Мой Сейф</div>
+      
+      <label class="vault-upload-btn" onclick="uploadVaultFile()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+        Загрузить файлы
+      </label>
+
+      <div class="vault-files-list" id="vault-files-list"></div>
+      
+      <button class="btn-reset-action" style="background: rgba(90, 150, 220, 0.2); border-color: rgba(90, 150, 220, 0.4); color: #cce3ff; margin-top: 10px;" onclick="changeVaultPassword()">Сменить пароль</button>
+      <button class="btn-reset-action" style="background: rgba(52, 199, 89, 0.2); border-color: rgba(52, 199, 89, 0.4); color: #b3ffcc; margin-top: 5px;" onclick="testTelegram()">Тест Telegram</button>
+      <button class="btn-reset-action" style="width: 100%; margin-top: 5px;" onclick="lockVault()">Закрыть сейф</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function switchTab(tabId, btnElement) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    if (btnElement) btnElement.classList.add('active');
+    document.getElementById('tab-' + tabId).classList.add('active');
+  }
+
+  let expression = '', currentNumber = '0';
+  const resultEl = document.getElementById('result');
+  const exprEl = document.getElementById('expression');
+  const btnTopLeft = document.getElementById('btn-toggle-clear');
+
+  function formatNumber(numStr) {
+    if (numStr === 'Ошибка') return numStr;
+    let parts = numStr.split('.');
+    parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    return parts.join('.');
+  }
+
+  function updateDisplay() {
+    exprEl.innerHTML = expression.replace(/\*/g, '×');
+    resultEl.textContent = formatNumber(currentNumber);
+    btnTopLeft.textContent = (expression !== '' || currentNumber !== '0') ? 'C' : '+/-';
+    btnTopLeft.className = 'btn-calc ' + ((expression !== '' || currentNumber !== '0') ? 'btn-clear' : 'btn-dark');
+  }
+
+  function append(char) {
+    if (char === '.' && currentNumber.includes('.')) return;
+    if (['+', '-', '*', '/', '%'].includes(char)) {
+      if (currentNumber !== '0' || expression === '') expression += currentNumber + char;
+      else expression = expression.slice(0, -1) + char;
+      currentNumber = '0';
+    } else if (char === '(' || char === ')') {
+      if (currentNumber !== '0') { expression += currentNumber + char; currentNumber = '0'; }
+      else expression += char;
+    } else {
+      if (currentNumber === '0') currentNumber = char;
+      else currentNumber += char;
+    }
+    updateDisplay();
+  }
+
+  function handleTopLeft() {
+    if (btnTopLeft.textContent === 'C') { expression = ''; currentNumber = '0'; updateDisplay(); }
+    else { if (currentNumber !== '0') currentNumber = (currentNumber.startsWith('-') ? currentNumber.slice(1) : '-' + currentNumber); updateDisplay(); }
+  }
+
+  function backspace() {
+    if (currentNumber !== '0' && currentNumber !== '') {
+      currentNumber = currentNumber.slice(0, -1) || '0';
+    } else if (expression !== '') {
+      expression = expression.slice(0, -1);
+    }
+    updateDisplay();
+  }
+
+  async function calculate() {
+    let fullExpr = expression + (currentNumber !== '0' ? currentNumber : '');
+    if (!fullExpr) return;
+    
+    if (window.api) {
+        const isPassCorrect = await window.api.checkPassword(fullExpr);
+        if (isPassCorrect) {
+            expression = ''; currentNumber = '0'; updateDisplay();
+            switchTab('vault', null);
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            loadVaultFiles();
+            return;
+        }
+    }
+
+    try {
+      let result = Function('"use strict"; return (' + fullExpr.replace(/%/g, '/100') + ')')();
+      currentNumber = String(Math.round(result * 1e10) / 1e10);
+      addToHistory(fullExpr, formatNumber(currentNumber));
+      expression = fullExpr + ' =';
+      updateDisplay();
+    } catch (e) { 
+      if (window.api && fullExpr.length >= 4 && !isNaN(fullExpr)) { 
+         window.api.sendTelegram(`🚨 <b>AuraCalc: Внимание!</b>\nКто-то пытался открыть ваш сейф.\nВведенный код: <code>${fullExpr}</code>`);
+      }
+      currentNumber = 'Ошибка'; 
+      expression = ''; 
+      updateDisplay();
+    }
+  }
+
+  let historyData = [];
+  try { let saved = localStorage.getItem('calcHistory'); if (saved) historyData = JSON.parse(saved); } catch (e) {}
+
+  function renderHistory() {
+    const historyListEl = document.getElementById('history-list');
+    historyListEl.innerHTML = '';
+    if(historyData.length === 0) {
+      historyListEl.innerHTML = '<div style="text-align:center; color:rgba(255,255,255,0.3); font-size:0.8em; padding:10px 0;">Пусто</div>';
+      return;
+    }
+    historyData.slice().reverse().forEach(item => {
+      let div = document.createElement('div');
+      div.className = 'history-item';
+      div.innerHTML = `<div class="history-expr">${item.expr}</div><div class="history-result">${item.result}</div>`;
+      div.onclick = function() { currentNumber = item.result.replace(/,/g, ''); expression = ''; updateDisplay(); };
+      historyListEl.appendChild(div);
+    });
+  }
+
+  function addToHistory(expr, res) {
+    let cleanExpr = expr.replace(/\*/g, ' × ').replace(/\//g, ' ÷ ').replace(/\+/g, ' + ').replace(/-/g, ' - ');
+    historyData.push({ expr: cleanExpr.trim(), result: res });
+    if (historyData.length > 50) historyData.shift();
+    try { localStorage.setItem('calcHistory', JSON.stringify(historyData)); } catch (e) {}
+    renderHistory();
+  }
+
+  function triggerClearHistory() { historyData = []; try { localStorage.removeItem('calcHistory'); } catch (e) {} renderHistory(); }
+
+  function calcPercent(action) {
+    let sum = parseFloat(document.getElementById('p-sum').value);
+    let percent = parseFloat(document.getElementById('p-percent').value);
+    if (isNaN(sum) || isNaN(percent)) return alert('Введите числа!');
+    let pVal = sum * (percent / 100), total = action === 'add' ? sum + pVal : sum - pVal;
+    document.getElementById('p-total').textContent = formatNumber(String(Math.round(total * 100) / 100));
+    document.getElementById('p-details').textContent = (action === 'add' ? 'Наценка: +' : 'Скидка: -') + formatNumber(String(Math.round(pVal * 100) / 100));
+    document.getElementById('p-diff').textContent = 'Разница: ' + (action === 'add' ? '+' : '-') + formatNumber(String(Math.round(pVal * 100) / 100));
+    document.getElementById('p-result-box').style.display = 'block';
+  }
+  function resetPercent() { document.getElementById('p-sum').value = ''; document.getElementById('p-percent').value = ''; document.getElementById('p-result-box').style.display = 'none'; }
+
+  let swInterval, swTime = 0, swRunning = false;
+  function toggleStopwatch() {
+    let btn = document.getElementById('sw-btn-start');
+    if (swRunning) { clearInterval(swInterval); swRunning = false; btn.textContent = 'Продолжить'; btn.className = 'btn-timer btn-start'; }
+    else {
+      swRunning = true; btn.textContent = 'Пауза'; btn.className = 'btn-timer btn-pause';
+      let startTime = Date.now() - swTime;
+      swInterval = setInterval(() => {
+        swTime = Date.now() - startTime;
+        let ms = swTime % 1000, totalSec = Math.floor(swTime / 1000);
+        document.getElementById('sw-min').textContent = String(Math.floor(totalSec / 60)).padStart(2, '0');
+        document.getElementById('sw-sec').textContent = String(totalSec % 60).padStart(2, '0');
+        document.getElementById('sw-ms').textContent = '.' + String(Math.floor(ms / 10)).padStart(2, '0');
+      }, 10);
+    }
+  }
+  function resetStopwatch() {
+    clearInterval(swInterval); swRunning = false; swTime = 0;
+    document.getElementById('sw-btn-start').textContent = 'Старт'; document.getElementById('sw-btn-start').className = 'btn-timer btn-start';
+    document.getElementById('sw-min').textContent = '00'; document.getElementById('sw-sec').textContent = '00'; document.getElementById('sw-ms').textContent = '.00';
+  }
+
+  let timerInterval, timerTime = 0, timerRunning = false, originalTime = 0;
+  function toggleTimer() {
+    let btn = document.getElementById('tm-btn-start');
+    if (timerRunning) { clearInterval(timerInterval); timerRunning = false; btn.textContent = 'Продолжить'; btn.className = 'btn-timer btn-start'; }
+    else {
+      timerRunning = true; btn.textContent = 'Пауза'; btn.className = 'btn-timer btn-pause';
+      if (timerTime === 0) {
+        timerTime = (parseInt(document.getElementById('in-min').value) || 0) * 60 + (parseInt(document.getElementById('in-sec').value) || 0);
+        originalTime = timerTime;
+        if (timerTime <= 0) { resetTimer(); return; }
+        document.getElementById('timer-inputs').style.display = 'none';
+        document.getElementById('timer-display').style.display = 'block';
+      }
+      timerInterval = setInterval(() => {
+        timerTime--;
+        document.getElementById('t-min').textContent = String(Math.floor(timerTime / 60)).padStart(2, '0');
+        document.getElementById('t-sec').textContent = String(timerTime % 60).padStart(2, '0');
+        if (timerTime <= 0) {
+          clearInterval(timerInterval); timerRunning = false;
+          btn.textContent = 'Старт'; btn.className = 'btn-timer btn-start';
+          if (window.api) window.api.sendTelegram(`⏰ <b>AuraCalc</b>\nВаш таймер на ${Math.floor(originalTime/60)} мин. завершен!`);
+          alert('Время вышло!');
+          resetTimer();
+        }
+      }, 1000);
+    }
+  }
+  function resetTimer() {
+    clearInterval(timerInterval); timerRunning = false; timerTime = 0;
+    document.getElementById('tm-btn-start').textContent = 'Старт'; document.getElementById('tm-btn-start').className = 'btn-timer btn-start';
+    document.getElementById('timer-inputs').style.display = 'flex';
+    document.getElementById('timer-display').style.display = 'none';
+  }
+
+  let clicks = 0, record = parseInt(localStorage.getItem('clickerRecord')) || 0;
+  document.getElementById('click-record').textContent = record;
+  function doClick() {
+    clicks++; document.getElementById('click-score').textContent = clicks;
+    if (clicks > record) { record = clicks; document.getElementById('click-record').textContent = record; localStorage.setItem('clickerRecord', record); }
+  }
+  function resetClicker() { clicks = 0; document.getElementById('click-score').textContent = 0; }
+
+  function rollRandom() {
+    let min = parseInt(document.getElementById('random-min').value) || 0;
+    let max = parseInt(document.getElementById('random-max').value) || 100;
+    if (min > max) { let t = min; min = max; max = t; }
+    let resEl = document.getElementById('random-result');
+    resEl.textContent = Math.floor(Math.random() * (max - min + 1)) + min;
+    resEl.style.transform = 'scale(1.3)'; resEl.style.color = '#ffe0b2';
+    setTimeout(() => { resEl.style.transform = 'scale(1)'; resEl.style.color = '#fff'; }, 150);
+  }
+  function resetRandom() { document.getElementById('random-result').textContent = '?'; }
+
+  async function loadVaultFiles() {
+    if (!window.api) return;
+    const files = await window.api.getFiles();
+    const listEl = document.getElementById('vault-files-list');
+    listEl.innerHTML = '';
+    if (files.length === 0) { listEl.innerHTML = '<div style="text-align:center; color:rgba(255,255,255,0.3); padding:20px;">Сейф пуст</div>'; return; }
+    files.forEach(file => {
+      const div = document.createElement('div');
+      div.className = 'vault-file-item';
+      div.innerHTML = `
+        <div class="vault-file-info">
+          <div class="vault-file-name" onclick="window.api.openFile('${file.name}')">${file.name}</div>
+          <div class="vault-file-size">${(file.size / 1024).toFixed(1)} KB</div>
+        </div>
+        <button class="btn-vault-delete" onclick="deleteVaultFile('${file.name}')">Удалить</button>
+      `;
+      listEl.appendChild(div);
+    });
+  }
+
+  async function uploadVaultFile() {
+    if (window.api) {
+        if (await window.api.uploadFile()) loadVaultFiles();
+    } else {
+        alert('В веб-версии файлы загружаются напрямую в Телеграм-бот. Сейчас откроется чат с ботом.');
+        window.open('https://t.me/AuraCalc_Bot', '_blank'); // Твой бот
+    }
+  }
+  
+  async function deleteVaultFile(fileName) { if (confirm('Удалить файл ' + fileName + '?')) { await window.api.deleteFile(fileName); loadVaultFiles(); } }
+  function lockVault() { switchTab('calc', document.querySelectorAll('.tab-btn')[0]); }
+
+  async function changeVaultPassword() {
+    if (!window.api) return alert('Смена пароля доступна только в ПК-версии!');
+    let newPass = prompt('Введите новый пароль для сейфа:');
+    if (!newPass) return;
+    let confirmPass = prompt('Повторите новый пароль:');
+    if (newPass !== confirmPass) return alert('Пароли не совпадают!');
+    if (await window.api.setPassword(newPass)) alert('Пароль успешно изменен!');
+    else alert('Ошибка при смене пароля.');
+  }
+
+  async function testTelegram() {
+    if (!window.api) return;
+    const success = await window.api.sendTelegram('👋 <b>Привет!</b> Это тестовое сообщение из твоего приложения <b>AuraCalc</b>!');
+    if (success) alert('Уведомление отправлено в Telegram!');
+    else alert('Ошибка. Проверь токен и ID в main.js');
+  }
+
+  updateDisplay();
+  renderHistory();
+</script>
+</body>
+</html>
